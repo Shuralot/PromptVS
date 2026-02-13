@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id             String   @id @default(uuid())
+  name           String
+  // ... existing fields
+  clients        Client[]
+  testSessions   TestSession[] // Global sessions list
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  agents    Agent[]
+}
+
+model Agent {
+  id          String   @id @default(uuid())
+  clientId    String
+  name        String
+  description String?
+  assistantId String?  // ID do assistente na OpenAI Platform
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client      Client   @relation(fields: [clientId], references: [id])
+  versions    AgentVersion[]
+}
+
+model TestScenario {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  personaSystemPrompt String
+  difficulty  String
+  sessions    TestSession[]
+}
+
+model AgentVersion {
+  id            String   @id @default(uuid())
+  agentId       String
+  versionNumber String   // e.g. "Draft", "v1.0", "v2.0"
+  config        Json?    // Specific instructions/prompts for this version
+  createdAt     DateTime @default(now())
+  
+  agent         Agent         @relation(fields: [agentId], references: [id])
+  sessions      TestSession[]
+}
+
+model TestSession {
+  id              String   @id @default(uuid())
+  tenantId        String
+  scenarioId      String
+  agentVersionId  String?  // Linked to specific version
+  agentThreadId   String?  // Thread ID for the agent side (OpenAI Assistants)
+  targetNumber    String
+  simulationMode  String   @default("EVOLUTION") // "EVOLUTION" or "LABORATORY"
+  status          String
+  maxMessages     Int
+  currentTurn     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  scenario        TestScenario @relation(fields: [scenarioId], references: [id])
+  agentVersion    AgentVersion? @relation(fields: [agentVersionId], references: [id])
+  messages        MessageLog[]
+  report          TestReport?
+}
+
+model MessageLog {
+  id            String      @id @default(uuid())
+  sessionId     String
+  sender        String      // "TESTER" (Sua IA) ou "AGENT" (IA do Cliente)
+  content       String      @db.Text
+  timestamp     DateTime    @default(now())
+  
+  session       TestSession @relation(fields: [sessionId], references: [id])
+}
+
+model TestReport {
+  id            String      @id @default(uuid())
+  sessionId     String      @unique
+  score         Int         // 0 a 100
+  summary       String      @db.Text
+  strengths     String      @db.Text
+  weaknesses    String      @db.Text
+  suggestions   String      @db.Text
+  rawAnalysis   Json?       // JSON completo da análise da IA
+  createdAt     DateTime    @default(now())
+  
+  session       TestSession @relation(fields: [sessionId], references: [id])
+}

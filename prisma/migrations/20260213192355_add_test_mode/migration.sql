@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "TestSession" ADD COLUMN     "mode" TEXT NOT NULL DEFAULT 'EVOLUTION';
