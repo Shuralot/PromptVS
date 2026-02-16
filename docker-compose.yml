@@ -1,12 +1,12 @@
 services:
   app:
-    image: promptvs-app:latest
+    image: tracktest-app:latest
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.v6
       args:
         - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
-    container_name: PromptVS
+    container_name: TrackTest
     restart: always
     expose:
       - "3000"
@@ -20,6 +20,17 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NODE_ENV=${NODE_ENV}
       - SOCKET_SERVER_URL=http://socket-server:4000
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Running inline entrypoint...';
+      npx prisma db push --accept-data-loss;
+      node seed-tenant.js;
+      npm run dev -- -H 0.0.0.0"
     depends_on:
       - db
       - socket-server
@@ -27,7 +38,7 @@ services:
       - app_network
 
   socket-server:
-    image: promptvs-socket:latest
+    image: tracktest-socket:latest
     build:
       context: ./socket-server
       dockerfile: Dockerfile
@@ -35,12 +46,38 @@ services:
     restart: always
     ports:
       - "4000:4000"
+    volumes:
+      - ./socket-server:/app
+      - /app/node_modules
+    networks:
+      - app_network
+
+  webhook-service:
+    image: tracktest-webhook:latest
+    build:
+      context: .
+      dockerfile: ./webhook-service/Dockerfile.v6
+    container_name: webhook_service
+    restart: always
+    ports:
+      - "${WEBHOOK_SERVICE_PORT}:5001"
+    volumes:
+      - ./webhook-service:/app
+      - /app/node_modules
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - MAIN_APP_URL=http://app:3000
+      - SOCKET_SERVER_URL=http://socket-server:4000
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+    depends_on:
+      - db
+      - app
     networks:
       - app_network
 
   db:
     image: postgres:15-alpine
-    container_name: PromptVS_db
+    container_name: TrackTest_db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -57,7 +94,6 @@ services:
 
 volumes:
   postgres_data:
-
 
 networks:
   app_network:

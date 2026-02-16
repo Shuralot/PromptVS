@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/session';
+import { logAudit } from '@/lib/audit';
 
 export async function GET() {
     try {
+        const session = await getSession();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const scenarios = await prisma.testScenario.findMany({
-            orderBy: { title: 'asc' }
+            orderBy: { title: 'asc' },
+            include: { createdBy: { select: { username: true } } }
         });
         return NextResponse.json(scenarios);
     } catch (e) {
@@ -15,6 +21,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
+        const session = await getSession();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { title, description, personaSystemPrompt, difficulty } = body;
 
@@ -27,8 +36,17 @@ export async function POST(req: Request) {
                 title,
                 description: description || '',
                 personaSystemPrompt,
-                difficulty: difficulty || 'Medium'
+                difficulty: difficulty || 'Medium',
+                createdById: session.user.id
             }
+        });
+
+        await logAudit({
+            userId: session.user.id,
+            action: 'CREATE',
+            entity: 'TestScenario',
+            entityId: scenario.id,
+            details: `Created scenario: ${title}`
         });
 
         return NextResponse.json(scenario);

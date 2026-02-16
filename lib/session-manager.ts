@@ -40,19 +40,20 @@ export async function finalizeSession(sessionId: string) {
 
     const avgResponseTimeSeconds = responseCount > 0 ? (totalResponseTime / responseCount / 1000).toFixed(2) : "0";
     const transcript = allMessages.map((m: any) => ({
-        sender: m.sender,
+        sender: m.sender === 'TESTER' ? 'RAGNAR' : m.sender,
         content: m.content,
         timestamp: m.timestamp
     }));
 
     // 3. Generate Report
     try {
-        const analysis = await generateAuditReport(session.scenario.description, transcript);
+        const { analysis, usedPrompt } = await generateAuditReport(session.scenario.description, transcript);
 
         const finalAnalysis = {
             ...analysis,
             rawAnalysis: {
                 ...(analysis.rawAnalysis || {}),
+                ...analysis, // Save everything
                 avgResponseTimeSeconds,
                 totalMessages: allMessages.length
             }
@@ -62,11 +63,12 @@ export async function finalizeSession(sessionId: string) {
             data: {
                 sessionId: session.id,
                 score: finalAnalysis.score || 0,
-                summary: finalAnalysis.summary || "",
-                strengths: finalAnalysis.strengths || "",
-                weaknesses: finalAnalysis.weaknesses || "",
-                suggestions: finalAnalysis.suggestions || "",
-                rawAnalysis: finalAnalysis.rawAnalysis as any
+                summary: finalAnalysis.summary || null, // Optional now
+                strengths: finalAnalysis.strengths || null, // Optional now
+                weaknesses: finalAnalysis.weaknesses || null, // Optional now
+                suggestions: finalAnalysis.suggestions || null, // Optional now
+                rawAnalysis: finalAnalysis.rawAnalysis as any,
+                usedPrompt: usedPrompt
             }
         });
 

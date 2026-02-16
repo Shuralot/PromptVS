@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifySocketServer } from '@/lib/socket';
+import { finalizeSession } from '@/lib/session-manager';
 
 export async function POST(
     req: Request,
@@ -24,13 +25,11 @@ export async function POST(
         // Update status
         const updatedSession = await prisma.testSession.update({
             where: { id },
-            data: { status: 'STOPPED' }
+            data: { status: 'COMPLETED' } // Change to COMPLETED to trigger UI report view
         });
 
-        // Emit update
-        await notifySocketServer('session-update', id, {
-            status: 'STOPPED'
-        });
+        // Trigger Analysis
+        await finalizeSession(id);
 
         return NextResponse.json({ success: true, session: updatedSession });
 

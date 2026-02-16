@@ -10,7 +10,10 @@ export async function sendWhatsAppMessage(number: string, text: string) {
 
     try {
         // Basic Evolution API v2 structure for sending text
-        const res = await fetch(`${baseUrl}/message/sendText/${instance}`, {
+        const cleanBaseUrl = baseUrl.replace(/\/$/, ""); 
+        const url = `${cleanBaseUrl}/message/sendText/${encodeURIComponent(instance)}`;
+        
+        const res = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/session';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(req: Request) {
     try {
+        const session = await getSession();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { searchParams } = new URL(req.url);
         const clientId = searchParams.get('clientId');
 
@@ -16,7 +21,8 @@ export async function GET(req: Request) {
             include: {
                 _count: {
                     select: { versions: true }
-                }
+                },
+                createdBy: { select: { username: true } }
             }
         });
 
@@ -29,6 +35,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
+        const session = await getSession();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { name, description, clientId, assistantId } = body;
 
@@ -41,7 +50,8 @@ export async function POST(req: Request) {
                 name,
                 description,
                 clientId,
-                assistantId // Save OpenAI Assistant ID
+                assistantId,
+                createdById: session.user.id
             }
         });
 
@@ -52,6 +62,14 @@ export async function POST(req: Request) {
                 versionNumber: 'v1.0 (Initial)',
                 config: {}
             }
+        });
+
+        await logAudit({
+            userId: session.user.id,
+            action: 'CREATE',
+            entity: 'Agent',
+            entityId: agent.id,
+            details: `Created agent: ${name}`
         });
 
         return NextResponse.json(agent);

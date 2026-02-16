@@ -13,19 +13,86 @@ datasource db {
 model Tenant {
   id             String   @id @default(uuid())
   name           String
-  // ... existing fields
+  users          User[]
   clients        Client[]
   testSessions   TestSession[] // Global sessions list
+  testPhones     TestPhone[]
+  auditConfig    AuditConfig?
+}
+
+// ... existing Tenant ...
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // Hashed
+  role      String   @default("USER") // "ADMIN" or "USER"
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  // Relations for creation
+  createdClients     Client[]       @relation("CreatedBy")
+  createdAgents      Agent[]        @relation("CreatedBy")
+  createdScenarios   TestScenario[] @relation("CreatedBy")
+  createdSessions    TestSession[]  @relation("CreatedBy")
+
+  // Relations for updates
+  updatedClients     Client[]       @relation("UpdatedBy")
+  updatedAgents      Agent[]        @relation("UpdatedBy")
+  updatedScenarios   TestScenario[] @relation("UpdatedBy")
+
+  // Full Audit Log
+  auditLogs          AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String   // "CREATE", "UPDATE", "DELETE", "LOGIN"
+  entity    String   // "Client", "Agent", "Scenario"
+  entityId  String?
+  details   String?  // Description or JSON
+  timestamp DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model AuditConfig {
+  id          String   @id @default(uuid())
+  tenantId    String   @unique
+  prompt      String   @db.Text
+  auditFields Json?    // Array of field definitions e.g. [{ key: "summary", description: "...", type: "string" }]
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model TestPhone {
+  id        String   @id @default(uuid())
+  number    String   @unique
+  name      String?
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 }
 
 model Client {
   id        String   @id @default(uuid())
   tenantId  String
   name      String
+  createdById String?
+  updatedById String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdBy User?    @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy User?    @relation("UpdatedBy", fields: [updatedById], references: [id])
   agents    Agent[]
 }
 
@@ -34,12 +101,16 @@ model Agent {
   clientId    String
   name        String
   description String?
-  assistantId String?  // ID do assistente na OpenAI Platform
+  assistantId String?
+  createdById String?
+  updatedById String?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   client      Client   @relation(fields: [clientId], references: [id])
+  createdBy   User?    @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?    @relation("UpdatedBy", fields: [updatedById], references: [id])
   versions    AgentVersion[]
 }
 
@@ -49,6 +120,11 @@ model TestScenario {
   description String
   personaSystemPrompt String
   difficulty  String
+  createdById String?
+  updatedById String?
+  
+  createdBy   User?    @relation("CreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?    @relation("UpdatedBy", fields: [updatedById], references: [id])
   sessions    TestSession[]
 }
 
@@ -74,12 +150,14 @@ model TestSession {
   status          String
   maxMessages     Int
   currentTurn     Int      @default(0)
+  createdById     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
   tenant          Tenant       @relation(fields: [tenantId], references: [id])
   scenario        TestScenario @relation(fields: [scenarioId], references: [id])
   agentVersion    AgentVersion? @relation(fields: [agentVersionId], references: [id])
+  createdBy       User?        @relation("CreatedBy", fields: [createdById], references: [id])
   messages        MessageLog[]
   report          TestReport?
 }
@@ -98,12 +176,14 @@ model TestReport {
   id            String      @id @default(uuid())
   sessionId     String      @unique
   score         Int         // 0 a 100
-  summary       String      @db.Text
-  strengths     String      @db.Text
-  weaknesses    String      @db.Text
-  suggestions   String      @db.Text
+  summary       String?     @db.Text
+  strengths     String?     @db.Text
+  weaknesses    String?     @db.Text
+  suggestions   String?     @db.Text
   rawAnalysis   Json?       // JSON completo da análise da IA
+  usedPrompt    String?     @db.Text // Snapshot of the prompt used for audit
   createdAt     DateTime    @default(now())
   
   session       TestSession @relation(fields: [sessionId], references: [id])
 }
+

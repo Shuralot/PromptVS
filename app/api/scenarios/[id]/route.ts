@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/session';
+import { logAudit } from '@/lib/audit';
 
 export async function PATCH(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const { id } = await params;
         const body = await req.json();
@@ -16,8 +21,17 @@ export async function PATCH(
                 title,
                 description,
                 personaSystemPrompt,
-                difficulty
+                difficulty,
+                updatedById: session.user.id
             }
+        });
+
+        await logAudit({
+            userId: session.user.id,
+            action: 'UPDATE',
+            entity: 'TestScenario',
+            entityId: id,
+            details: `Updated scenario: ${title}`
         });
 
         return NextResponse.json(updated);
@@ -31,14 +45,28 @@ export async function DELETE(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const { id } = await params;
+        
+        // Fetch for log
+        const scenario = await prisma.testScenario.findUnique({ where: { id } });
 
-        // Note: This might fail if there are active sessions using this scenario.
-        // In a real app we'd handle foreign key constraints gracefully.
         await prisma.testScenario.delete({
             where: { id }
         });
+
+        if (scenario) {
+            await logAudit({
+                userId: session.user.id,
+                action: 'DELETE',
+                entity: 'TestScenario',
+                entityId: id,
+                details: `Deleted scenario: ${scenario.title}`
+            });
+        }
 
         return NextResponse.json({ success: true });
     } catch (e) {

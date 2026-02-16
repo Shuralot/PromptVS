@@ -197,7 +197,7 @@ export default function AgentVersionsPage({ params }: { params: Promise<{ id: st
                                 <label className="block text-sm font-medium text-slate-400 mb-2">Config Override (JSON) (Optional)</label>
                                 <textarea
                                     className="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xs h-32"
-                                    placeholder='{ "model": "gpt-4.1-mini", "temperature": 0.7 }'
+                                    placeholder='{ "model": "gpt-4o-mini", "temperature": 0.7 }'
                                     value={config}
                                     onChange={(e) => setConfig(e.target.value)}
                                 />

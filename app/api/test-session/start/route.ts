@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { generateTesterResponse } from '@/lib/openai';
+import { generateRagnarResponse } from '@/lib/openai';
 import { sendWhatsAppMessage } from '@/lib/evolution';
 import { notifySocketServer } from '@/lib/socket';
 import { finalizeSession } from '@/lib/session-manager';
+import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
     try {
+        const sessionAuth = await getSession();
+        if (!sessionAuth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
-        const { tenantId, scenarioId, targetNumber, maxMessages, agentVersionId, simulationMode = 'EVOLUTION' } = body;
+        const { scenarioId, targetNumber, maxMessages, agentVersionId, simulationMode = 'EVOLUTION' } = body;
+        const tenantId = sessionAuth.user.tenantId;
 
         if (!tenantId || !scenarioId || (simulationMode === 'EVOLUTION' && !targetNumber)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -37,7 +42,8 @@ export async function POST(req: Request) {
                 status: 'RUNNING',
                 maxMessages: maxMessages || 10,
                 currentTurn: 0,
-                simulationMode: simulationMode
+                simulationMode: simulationMode,
+                createdById: sessionAuth.user.id
             },
             include: {
                 scenario: true,
@@ -47,8 +53,9 @@ export async function POST(req: Request) {
             }
         });
 
+
         // 3. Generate Icebreaker (First Message)
-        const initialMessage = await generateTesterResponse(
+        const initialMessage = await generateRagnarResponse(
             scenario.personaSystemPrompt,
             [{ role: 'user', content: "Initiate the conversation now according to your persona constraints. Be natural." }]
         );
@@ -173,7 +180,7 @@ async function triggerLabSimulation(sessionId: string, lastMessage: string) {
                     content: m.content
                 })) as any;
 
-                const reply = await generateTesterResponse(session.scenario.personaSystemPrompt, history);
+                const reply = await generateRagnarResponse(session.scenario.personaSystemPrompt, history);
 
                 const testerMsg = await prisma.messageLog.create({
                     data: { sessionId, sender: 'TESTER', content: reply }

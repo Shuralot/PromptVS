@@ -150,9 +150,13 @@ export default function ClientAgentsPage({ params }: { params: Promise<{ id: str
                                     <button onClick={() => handleDelete(agent.id)} className="p-1.5 hover:bg-red-900/30 rounded-lg text-slate-400 hover:text-red-400" title="Delete">🗑️</button>
                                 </div>
                             </div>
-                            <p className="text-sm text-slate-400 line-clamp-2 mb-6">
+                            <p className="text-sm text-slate-400 line-clamp-2 mb-4">
                                 {agent.description || 'Customized AI for specific business logic.'}
                             </p>
+                            <div className="flex justify-between items-center text-[10px] text-slate-500 font-medium border-t border-slate-700/50 pt-2 mb-4">
+                                <span>{new Date(agent.createdAt).toLocaleDateString()}</span>
+                                <span>{agent.createdBy?.username ? `by ${agent.createdBy.username}` : ''}</span>
+                            </div>
                         </div>
                         <Link
                             href={`/dashboard/agents/${agent.id}`}

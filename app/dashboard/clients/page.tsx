@@ -81,7 +81,7 @@ export default function ClientsPage() {
         <div className="font-sans px-4 md:px-0">
             <header className="mb-12 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
                 <div>
-                    <h1 className="text-4xl font-black text-white tracking-tight mb-2">Clientes</h1>
+                    <h1 className="text-4xl font-black text-white tracking-tight mb-2">Agentes e Clientes</h1>
                     <p className="text-slate-400">Gerencie as contas e seus respectivos agentes de IA.</p>
                 </div>
                 <button
@@ -117,7 +117,10 @@ export default function ClientsPage() {
                             </div>
                             <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                                 <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> {client._count?.agents || 0} Agentes</span>
-                                <span>Criado em {new Date(client.createdAt).toLocaleDateString()}</span>
+                                <div className="text-right">
+                                    <p>Criado em {new Date(client.createdAt).toLocaleDateString()}</p>
+                                    {client.createdBy && <p className="text-indigo-400 mt-0.5">por {client.createdBy.username}</p>}
+                                </div>
                             </div>
                         </Link>
 

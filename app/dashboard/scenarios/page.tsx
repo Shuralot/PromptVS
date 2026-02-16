@@ -123,9 +123,15 @@ export default function ScenariosPage() {
                             <h3 className="text-xl font-bold text-white mb-2">{s.title}</h3>
                             <p className="text-sm text-slate-400 mb-4 line-clamp-2">{s.description}</p>
 
-                            <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+                            <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 mb-3">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-tighter">System Prompt</p>
                                 <p className="text-xs text-indigo-300 font-mono line-clamp-3">{s.personaSystemPrompt}</p>
+                            </div>
+                            
+                            <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-wider pt-3 border-t border-slate-700/30">
+                                <span>{s.createdBy?.username || 'Sistema'}</span>
+                                {/* Assuming createdAt exists on scenarios too */}
+                                {/* <span>{new Date().toLocaleDateString()}</span> */} 
                             </div>
                         </div>
                     ))}

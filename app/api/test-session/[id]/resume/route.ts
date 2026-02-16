@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifySocketServer } from '@/lib/socket';
 import { sendWhatsAppMessage } from '@/lib/evolution';
-import { generateTesterResponse } from '@/lib/openai';
+import { generateRagnarResponse } from '@/lib/openai';
 
 // Force dynamic
 export const dynamic = 'force-dynamic';
@@ -54,7 +54,7 @@ export async function POST(
         });
 
         if (lastMessage && lastMessage.sender === 'AGENT') {
-            console.log(`[Resume] Last message was from AGENT. Triggering Tester reply...`);
+            console.log(`[Resume] Last message was from AGENT. Triggering Ragnar reply...`);
 
             // Generate History
             const historyLogs = await prisma.messageLog.findMany({
@@ -62,13 +62,13 @@ export async function POST(
                 orderBy: { timestamp: 'asc' }
             });
 
-            const history = historyLogs.map(m => ({
+            const history = historyLogs.map((m: any) => ({
                 role: m.sender === 'TESTER' ? 'assistant' : 'user',
                 content: m.content
             })) as { role: 'user' | 'assistant'; content: string }[];
 
             // Generate Reply
-            const reply = await generateTesterResponse(
+            const reply = await generateRagnarResponse(
                 session.scenario.personaSystemPrompt,
                 history
             );

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // PUT /api/versions/[id]
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {

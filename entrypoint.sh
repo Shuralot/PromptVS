@@ -3,11 +3,11 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-echo "--- Starting PromptVS Entrypoint ---"
+echo "--- Starting TrackTest Entrypoint ---"
 
-# 1. Run Prisma Migrations
-echo "[Entrypoint] Running Prisma Migrations..."
-npx prisma@6 migrate deploy
+# 1. Sync Database Schema
+echo "[Entrypoint] Syncing Database Schema..."
+npx prisma db push --accept-data-loss
 
 # 2. Run Seed Script (Ensures default tenant/scenarios exist)
 echo "[Entrypoint] Running Database Seeding..."
