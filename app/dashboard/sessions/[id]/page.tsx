@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { io } from 'socket.io-client';
 
@@ -11,6 +11,30 @@ export default function SessionView({ params }: { params: Promise<{ id: string }
     const [showPrompt, setShowPrompt] = useState(false);
     const unwrappedParams = use(params);
     const id = unwrappedParams.id;
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
+
+    // Smart Auto scroll to bottom
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container || !session?.messages?.length) return;
+
+        // Check if user is near bottom (within 150px)
+        const threshold = 150;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+
+        // Scroll if user is near bottom OR if it's the first time messages load
+        if (isNearBottom || !hasInitialScrolled) {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: hasInitialScrolled ? 'smooth' : 'instant'
+            });
+            
+            if (!hasInitialScrolled && session.messages.length > 0) {
+                setHasInitialScrolled(true);
+            }
+        }
+    }, [session?.messages, hasInitialScrolled]);
 
     useEffect(() => {
         fetchSession();
@@ -149,7 +173,7 @@ export default function SessionView({ params }: { params: Promise<{ id: string }
                 {/* Chat Column */}
                 <div className="lg:col-span-3 glass-panel rounded-[2.5rem] border-slate-800/50 flex flex-col overflow-hidden relative shadow-2xl">
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-10 space-y-8 relative z-10 scroll-smooth">
+                    <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 relative z-10 scroll-smooth flex flex-col" ref={scrollRef}>
                         {session.messages.length === 0 && (
                             <div className="flex flex-col items-center justify-center h-full text-center">
                                 <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center text-4xl mb-6 shadow-inner animate-pulse">💬</div>
@@ -160,19 +184,33 @@ export default function SessionView({ params }: { params: Promise<{ id: string }
 
                         {session.messages.map((msg: any, i: number) => {
                             const isTester = msg.sender === 'TESTER';
+                            const isSystem = msg.sender === 'SYSTEM';
+                            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            
+                            if (isSystem) {
+                                return (
+                                    <div key={msg.id} className="flex justify-center my-4 animate-fade-in">
+                                        <div className="bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-3">
+                                            <span className="text-[14px]">🔧</span>
+                                            <span className="text-[11px] font-mono text-slate-400 font-bold uppercase tracking-widest">{msg.content}</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
                             return (
                                 <div key={msg.id} className={`flex ${isTester ? 'justify-end' : 'justify-start'} animate-fade-in-up`} style={{ animationDelay: `${i * 50}ms` }}>
-                                    <div className={`max-w-[80%] lg:max-w-[70%] group`}>
-                                        <div className={`p-5 rounded-3xl shadow-2xl text-[15px] leading-relaxed transition-all ${isTester
+                                    <div className={`max-w-[85%] group`}>
+                                        <div className={`p-5 rounded-3xl shadow-2xl text-[15px] leading-relaxed transition-all whitespace-pre-wrap break-words ${isTester
                                             ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white rounded-tr-none shadow-indigo-900/20 group-hover:shadow-indigo-600/30'
                                             : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700 group-hover:bg-slate-750'
                                             }`}>
                                             {msg.content}
                                         </div>
                                         <div className={`text-[10px] mt-2 text-slate-500 font-bold uppercase tracking-widest flex gap-3 px-1 ${isTester ? 'justify-end' : 'justify-start'}`}>
-                                            <span className={isTester ? 'text-indigo-400' : 'text-slate-400'}>{isTester ? 'Ragnar' : 'Agente Sob Teste'}</span>
+                                            <span className={isTester ? 'text-indigo-400' : 'text-slate-400'}>{isTester ? 'Ragnar' : (session.agentVersion?.agent?.name || 'Agente')}</span>
                                             <span>•</span>
-                                            <span className="opacity-50 font-mono tracking-normal">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            <span className="opacity-50 font-mono tracking-normal">{time}</span>
                                         </div>
                                     </div>
                                 </div>

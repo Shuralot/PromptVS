@@ -97,11 +97,13 @@ export async function POST(req: Request) {
             if (session.agentVersion?.agent?.assistantId) {
                 console.log(`[Turn Process] Triggering autonomous Agent...`);
 
-                const { responseText, threadId } = await getAgentAssistantResponse(
+                const { responseText, threadId, toolCalls } = await getAgentAssistantResponse(
                     session.agentVersion.agent.assistantId,
                     session.agentThreadId || null,
                     messageContent
                 );
+
+                console.log(`[Turn Process] Assistant Response Ready. Tool Calls detected: ${toolCalls?.length || 0}`);
 
                 // Update Session Thread
                 await prisma.testSession.update({
@@ -109,7 +111,22 @@ export async function POST(req: Request) {
                     data: { agentThreadId: threadId }
                 });
 
-                // Log and Notify
+                // Log Tool Calls if any
+                if (toolCalls && toolCalls.length > 0) {
+                    console.log(`[Turn Process] Logging ${toolCalls.length} tool calls`);
+                    for (const tc of toolCalls) {
+                        const toolLogged = await prisma.messageLog.create({
+                            data: {
+                                sessionId: session.id,
+                                sender: 'SYSTEM',
+                                content: `🛠️ Tool Call: ${tc.name}`
+                            }
+                        });
+                        await notifySocketServer('message', session.id, toolLogged);
+                    }
+                }
+
+                // Log and Notify Agent Message
                 const loggedMsg = await prisma.messageLog.create({
                     data: {
                         sessionId: session.id,

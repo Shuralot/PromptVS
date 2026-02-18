@@ -126,7 +126,7 @@ async function triggerLabSimulation(sessionId: string, lastMessage: string) {
         // Trigger Agent
         if (session.agentVersion?.agent?.assistantId) {
             const { getAgentAssistantResponse } = await import('@/lib/openai');
-            const { responseText, threadId } = await getAgentAssistantResponse(
+            const { responseText, threadId, toolCalls } = await getAgentAssistantResponse(
                 session.agentVersion.agent.assistantId,
                 session.agentThreadId,
                 lastMessage
@@ -137,6 +137,20 @@ async function triggerLabSimulation(sessionId: string, lastMessage: string) {
                 where: { id: sessionId },
                 data: { agentThreadId: threadId }
             });
+
+            // Log Tool Calls if any
+            if (toolCalls && toolCalls.length > 0) {
+                for (const tc of toolCalls) {
+                    const toolLogged = await prisma.messageLog.create({
+                        data: {
+                            sessionId: sessionId,
+                            sender: 'SYSTEM',
+                            content: `🛠️ Tool Call: ${tc.name}`
+                        }
+                    });
+                    await notifySocketServer('message', sessionId, toolLogged);
+                }
+            }
 
             // Log and notify (Agent)
             const agentMsg = await prisma.messageLog.create({

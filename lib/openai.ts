@@ -40,6 +40,7 @@ export async function getAgentAssistantResponse(
 ) {
     try {
         const openai = getOpenAI();
+        const toolCallsMade: any[] = [];
 
         // 1. Thread Management
         let currentThreadId = threadId;
@@ -63,11 +64,21 @@ export async function getAgentAssistantResponse(
         while (run.status === 'queued' || run.status === 'in_progress' || run.status === 'requires_action') {
             // Wait 1s
             await new Promise(resolve => setTimeout(resolve, 1000));
-            // Corrected signature for openai@latest: retrieve(runID, { thread_id })
             run = await openai.beta.threads.runs.retrieve(run.id, { thread_id: currentThreadId });
 
             if (run.status === 'requires_action') {
                const toolCalls = run.required_action?.submit_tool_outputs.tool_calls || [];
+               
+               // Track tool calls for visibility
+               console.log(`[OpenAI Debug] Action Required. Tool calls detected: ${toolCalls.length}`);
+               toolCalls.forEach((tc: any) => {
+                   console.log(`[OpenAI Debug] Tool Identified: ${tc.function.name}`);
+                   toolCallsMade.push({
+                       name: tc.function.name,
+                       arguments: tc.function.arguments
+                   });
+               });
+
                const toolOutputs = toolCalls.map(tool => ({
                    tool_call_id: tool.id,
                    output: JSON.stringify({ result: "Tool executed successfully (simulated)", status: "OK" }) 
@@ -75,7 +86,6 @@ export async function getAgentAssistantResponse(
                
                if (toolOutputs.length > 0) {
                    console.log(`[OpenAI] Submitting ${toolOutputs.length} tool outputs for run ${run.id}`);
-                   // Corrected signature for openai@latest: submitToolOutputs(runID, { thread_id, tool_outputs })
                    run = await openai.beta.threads.runs.submitToolOutputs(run.id, {
                        thread_id: currentThreadId,
                        tool_outputs: toolOutputs
@@ -86,7 +96,6 @@ export async function getAgentAssistantResponse(
 
         if (run.status === 'completed') {
             const messages = await openai.beta.threads.messages.list(currentThreadId);
-            // The latest message from the assistant
             const lastMessage = messages.data
                 .filter(m => m.role === 'assistant')
                 .shift();
@@ -97,14 +106,12 @@ export async function getAgentAssistantResponse(
 
             return {
                 responseText,
-                threadId: currentThreadId
+                threadId: currentThreadId,
+                toolCalls: toolCallsMade
             };
         } else {
              console.error("Run failed with status:", run.status);
-             const messages = await openai.beta.threads.messages.list(currentThreadId);
              const lastRunError = run.last_error ? `${run.last_error.code}: ${run.last_error.message}` : "Unknown error";
-             
-             // If we have partial messages, maybe return them? But usually failed run means no message.
              throw new Error(`OpenAI Assistant Run failed: ${run.status} - ${lastRunError}`);
         }
     } catch (error) {
