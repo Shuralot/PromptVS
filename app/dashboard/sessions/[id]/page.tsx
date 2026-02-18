@@ -41,8 +41,17 @@ export default function SessionView({ params }: { params: Promise<{ id: string }
         const interval = setInterval(fetchSession, 3000); // Poll every 3s as backup
 
         // Connect to Socket Server
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
-        const socket = io(socketUrl);
+        let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+        
+        // Fallback inteligente para produção/VPS se a variável estiver vazia
+        if (!socketUrl && typeof window !== 'undefined') {
+            const isProd = window.location.hostname !== 'localhost';
+            socketUrl = isProd 
+                ? `${window.location.protocol}//${window.location.hostname}:4000`
+                : 'http://localhost:4000';
+        }
+
+        const socket = io(socketUrl || 'http://localhost:4000');
 
         socket.on('connect', () => {
             console.log('[Socket] Connected');

@@ -1,10 +1,10 @@
-# 🤖 Ragnar AI-vs-AI Testing Suite
+# 🤖 TrackTest - AI Testing Suite
 
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![AI-Testing](https://img.shields.io/badge/AI_Analysis-Experimental-blueviolet?style=for-the-badge)
 
-**Ragnar** é uma plataforma avançada desenvolvida com **Next.js** para orquestrar e analisar interações entre modelos de Inteligência Artificial. O projeto utiliza o agente **Ragnar** para testar e auditar outros agentes de IA em cenários adversariais.
+**TrackTest** é uma plataforma avançada desenvolvida com **Next.js** para orquestrar e analisar interações entre modelos de Inteligência Artificial. O projeto utiliza o agente **Ragnar** para testar e auditar outros agentes de IA em cenários adversariais.
 
 ---
 
@@ -33,8 +33,8 @@
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/TrackTest/PromptVS.git
-cd PromptVS
+git clone https://github.com/TrackTest/TrackTest.git
+cd TrackTest
 ```
 
 ### 2. Subir o ambiente com Docker

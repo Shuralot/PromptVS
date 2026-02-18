@@ -18,20 +18,10 @@ services:
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - NODE_ENV=${NODE_ENV}
+      - NODE_ENV=production
       - SOCKET_SERVER_URL=http://socket-server:4000
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh && /app/entrypoint.sh "$@"
-      - --
-    command: ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
+    # Em produção, não usamos volumes para o código, pois ele já está dentro da imagem.
     depends_on:
       - db
       - socket-server
@@ -47,9 +37,6 @@ services:
     restart: always
     ports:
       - "4000:4000"
-    volumes:
-      - ./socket-server:/app
-      - /app/node_modules
     networks:
       - app_network
 
@@ -62,9 +49,6 @@ services:
     restart: always
     ports:
       - "${WEBHOOK_SERVICE_PORT}:5001"
-    volumes:
-      - ./webhook-service:/app
-      - /app/node_modules
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - MAIN_APP_URL=http://app:3000
@@ -84,8 +68,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    # Em VPS, evite expor a porta do banco para a internet a menos que necessário e protegido por firewall.
-    # Se precisar acessar externamente, descomente a linha abaixo e configure DB_PORT no .env
     ports:
       - "${DB_PORT}:5432"
     volumes:
