@@ -3,7 +3,7 @@ services:
     image: tracktest-app:latest
     build:
       context: .
-      dockerfile: Dockerfile.v6
+      dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
     container_name: TrackTest
@@ -57,7 +57,7 @@ services:
     image: tracktest-webhook:latest
     build:
       context: .
-      dockerfile: ./webhook-service/Dockerfile.v6
+      dockerfile: ./webhook-service/Dockerfile
     container_name: webhook_service
     restart: always
     ports:
