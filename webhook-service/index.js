@@ -29,10 +29,11 @@ app.post("/webhook", async (req, res) => {
     }
 
     // --- 1. Content Extraction (Hyper-Robust) ---
+    console.log(`[Webhook] Processing event ${eventType} for msg ${msgId}`);
     const messageContent = (
       data.message?.conversation || 
       data.message?.extendedTextMessage?.text || 
-      data.message?.extendedTextMessage?.displayName || // Fallback for some API versions
+      data.message?.extendedTextMessage?.displayName || 
       data.message?.imageMessage?.caption ||
       data.message?.videoMessage?.caption ||
       data.message?.buttonsResponseMessage?.selectedButtonId ||
@@ -41,36 +42,39 @@ app.post("/webhook", async (req, res) => {
     ).trim();
 
     if (!messageContent) {
-      console.log(`[Webhook] No content in msg ${msgId} from ${remoteJid}`);
-      // Log part of message structure to help debug if it's a new type
-      console.log(`[Webhook] Message Structure: ${JSON.stringify(data.message).slice(0, 100)}...`);
+      console.log(`[Webhook] EXCLUDED: No text content found in message structure. JID: ${remoteJid}`);
       return res.json({ ignored: 'no_content' });
     }
 
     // --- 2. Session Match ---
     const recentSessions = await prisma.testSession.findMany({
+      where: { status: 'RUNNING' },
       orderBy: { createdAt: 'desc' },
-      take: 100
+      take: 50
     });
 
     const cleanRemote = remoteJid.replace(/\D/g, '');
+    console.log(`[Webhook] Looking for session for JID: ${remoteJid} (Clean: ${cleanRemote}) in ${recentSessions.length} active sessions`);
+
     const session = recentSessions.find(s => {
       if (!s.targetNumber) return false;
       const cleanTarget = s.targetNumber.replace(/\D/g, '');
       if (cleanTarget.length < 5) return false;
 
-      // Contains match
-      if (cleanRemote.includes(cleanTarget) || cleanTarget.includes(cleanRemote)) return true;
-      // Suffix match (8 digits)
+      const isMatch = cleanRemote.includes(cleanTarget) || cleanTarget.includes(cleanRemote);
+      if (isMatch) return true;
+
       const rSuffix = cleanRemote.slice(-8);
       const tSuffix = cleanTarget.slice(-8);
       return rSuffix === tSuffix && rSuffix.length === 8;
     });
 
     if (!session) {
-      console.log(`[Webhook] No session matched for JID: ${remoteJid} (Clean: ${cleanRemote})`);
+      console.log(`[Webhook] EXCLUDED: No active session matched for JID: ${remoteJid}. Available targets: ${recentSessions.map(rs => rs.targetNumber).join(', ')}`);
       return res.json({ ignored: 'no_session' });
     }
+
+    console.log(`[Webhook] MATCHED Session: ${session.id.slice(0,8)} | Target: ${session.targetNumber}`);
 
     // --- 3. Deduplication ---
     const sender = isFromMe ? "TESTER" : "AGENT";
@@ -84,12 +88,12 @@ app.post("/webhook", async (req, res) => {
                        lastMsg.sender === sender;
 
     if (isDuplicate) {
-      console.log(`[Webhook] Duplicate ignored for Session ${session.id.slice(0,8)} (${sender})`);
+      console.log(`[Webhook] EXCLUDED: Duplicate message detected for session ${session.id.slice(0,8)}`);
       return res.json({ ok: true, detail: 'duplicate' });
     }
 
     // --- 4. Persist and Notify ---
-    console.log(`[Webhook] SUCCESS | Session: ${session.id.slice(0,8)} | From: ${sender} | Msg: "${messageContent.slice(0,30)}..."`);
+    console.log(`[Webhook] SUCCESS | Session: ${session.id.slice(0,8)} | From: ${sender} | Msg: "${messageContent.slice(0,40)}..."`);
     
     const loggedMsg = await prisma.messageLog.create({
       data: {
@@ -103,12 +107,19 @@ app.post("/webhook", async (req, res) => {
 
     // --- 5. Next Turn ---
     try {
+      console.log(`[Webhook] Triggering internal turn process for session ${session.id.slice(0,8)}...`);
       axios.post(
         `${MAIN_APP_URL}/api/internal/process-turn`,
         { sessionId: session.id, sender, messageContent },
         { headers: { "x-internal-key": process.env.INTERNAL_API_KEY || "secret" } }
-      ).catch(e => console.error(`[Webhook] Turn trigger failed:`, e.message));
-    } catch (err) {}
+      ).then(resp => {
+        console.log(`[Webhook] Turn trigger SUCCESS: ${JSON.stringify(resp.data)}`);
+      }).catch(e => {
+        console.error(`[Webhook] Turn trigger FAILED:`, e.response?.data || e.message);
+      });
+    } catch (err) {
+      console.error(`[Webhook] Critical error triggering turn:`, err.message);
+    }
 
     return res.json({ ok: true });
   } catch (error) {

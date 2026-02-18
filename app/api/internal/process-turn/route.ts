@@ -30,25 +30,25 @@ export async function POST(req: Request) {
         });
 
         if (!session) {
-            console.log(`[Turn Process] Session ${sessionId} not found`);
+            console.warn(`[Turn Process] ABORTED: Session ${sessionId} not found in DB`);
             return NextResponse.json({ ignored: 'Session not found' });
         }
 
         if (session.status !== 'RUNNING') {
-            console.log(`[Turn Process] Session ${sessionId} is NOT RUNNING (Status: ${session.status})`);
+            console.info(`[Turn Process] IGNORED: Session ${sessionId.slice(0,8)} status is ${session.status}`);
             return NextResponse.json({ ignored: 'Session not active' });
         }
 
         // 2. Turn Logic: Who speaks next?
         if (sender === 'AGENT') {
-            // Agent just spoke. Now the TESTER (Adversary) must reply.
-
+            console.log(`[Turn Process] AGENT spoke. Preparing Ragnar (Tester) reply for session ${session.id.slice(0,8)}`);
+            
             // A. Check Limits
             const newTurnCount = session.currentTurn + 1;
-            console.log(`[Turn Process] Turn ${newTurnCount}/${session.maxMessages}`);
+            console.log(`[Turn Process] Turn advancement: ${newTurnCount}/${session.maxMessages}`);
 
             if (newTurnCount >= session.maxMessages) {
-                console.log(`[Turn Process] Limit reached. Finalizing.`);
+                console.log(`[Turn Process] LIMIT REACHED. Finalizing session ${session.id.slice(0,8)}`);
                 await finalizeSession(session.id);
                 return NextResponse.json({ status: 'Session Completed' });
             }
@@ -60,7 +60,6 @@ export async function POST(req: Request) {
             });
 
             // C. Generate Tester Reply
-            console.log(`[Turn Process] Generating Ragnar Reply...`);
             const historyLogs = await prisma.messageLog.findMany({
                 where: { sessionId: session.id },
                 orderBy: { timestamp: 'asc' }
@@ -71,6 +70,7 @@ export async function POST(req: Request) {
                 content: m.content
             })) as { role: 'user' | 'assistant'; content: string }[];
 
+            console.log(`[Turn Process] Generating Ragnar response with ${history.length} messages in history...`);
             const reply = await generateRagnarResponse(
                 session.scenario.personaSystemPrompt,
                 history
@@ -87,15 +87,20 @@ export async function POST(req: Request) {
             await notifySocketServer('message', session.id, loggedMsg);
 
             // E. Send to WhatsApp
-            console.log(`[Turn Process] Sending Tester Reply to WhatsApp...`);
-            await sendWhatsAppMessage(session.targetNumber, reply);
+            try {
+                console.log(`[Turn Process] Delivering Ragnar reply to WhatsApp (${session.targetNumber})...`);
+                await sendWhatsAppMessage(session.targetNumber, reply);
+                console.log(`[Turn Process] WhatsApp delivery SUCCESS`);
+            } catch (whatsappError: any) {
+                console.error(`[Turn Process] WhatsApp delivery FAILED:`, whatsappError.message);
+            }
 
             return NextResponse.json({ ok: true, action: 'tester_replied' });
 
         } else {
             // TESTER just spoke. Now the AGENT should respond if it's autonomous.
             if (session.agentVersion?.agent?.assistantId) {
-                console.log(`[Turn Process] Triggering autonomous Agent...`);
+                console.log(`[Turn Process] TESTER spoke. Triggering autonomous Agent (Assistant: ${session.agentVersion.agent.name})...`);
 
                 const { responseText, threadId, toolCalls } = await getAgentAssistantResponse(
                     session.agentVersion.agent.assistantId,
@@ -103,7 +108,7 @@ export async function POST(req: Request) {
                     messageContent
                 );
 
-                console.log(`[Turn Process] Assistant Response Ready. Tool Calls detected: ${toolCalls?.length || 0}`);
+                console.log(`[Turn Process] Agent response received. Tool calls: ${toolCalls?.length || 0}`);
 
                 // Update Session Thread
                 await prisma.testSession.update({
@@ -113,7 +118,7 @@ export async function POST(req: Request) {
 
                 // Log Tool Calls if any
                 if (toolCalls && toolCalls.length > 0) {
-                    console.log(`[Turn Process] Logging ${toolCalls.length} tool calls`);
+                    console.log(`[Turn Process] Logging ${toolCalls.length} tool calls for UI visibility...`);
                     for (const tc of toolCalls) {
                         const toolLogged = await prisma.messageLog.create({
                             data: {
@@ -137,13 +142,18 @@ export async function POST(req: Request) {
                 await notifySocketServer('message', session.id, loggedMsg);
 
                 // Send to WhatsApp
-                console.log(`[Turn Process] Sending Agent Response to WhatsApp...`);
-                await sendWhatsAppMessage(session.targetNumber, responseText);
+                try {
+                    console.log(`[Turn Process] Delivering AGENT response to WhatsApp (${session.targetNumber})...`);
+                    await sendWhatsAppMessage(session.targetNumber, responseText);
+                    console.log(`[Turn Process] WhatsApp delivery SUCCESS`);
+                } catch (whatsappError: any) {
+                    console.error(`[Turn Process] WhatsApp delivery FAILED:`, whatsappError.message);
+                }
 
                 return NextResponse.json({ ok: true, action: 'agent_triggered' });
             }
 
-            console.log(`[Turn Process] Waiting for external human agent.`);
+            console.log(`[Turn Process] TESTER spoke. No autonomous agent found. Waiting for external AGENT response via Evolution API.`);
             return NextResponse.json({ ok: true, action: 'waiting_for_external_agent' });
         }
 

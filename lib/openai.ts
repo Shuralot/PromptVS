@@ -61,18 +61,24 @@ export async function getAgentAssistantResponse(
         });
 
         // 4. Poll for completion
+        let pollCount = 0;
         while (run.status === 'queued' || run.status === 'in_progress' || run.status === 'requires_action') {
+            pollCount++;
             // Wait 1s
             await new Promise(resolve => setTimeout(resolve, 1000));
             run = await openai.beta.threads.runs.retrieve(run.id, { thread_id: currentThreadId });
+            
+            if (pollCount % 5 === 0) {
+                console.log(`[OpenAI] Run ${run.id} status: ${run.status} (Poll #${pollCount})`);
+            }
 
             if (run.status === 'requires_action') {
                const toolCalls = run.required_action?.submit_tool_outputs.tool_calls || [];
                
                // Track tool calls for visibility
-               console.log(`[OpenAI Debug] Action Required. Tool calls detected: ${toolCalls.length}`);
+               console.log(`[OpenAI] Action Required: ${toolCalls.length} tool calls detected in run ${run.id}`);
                toolCalls.forEach((tc: any) => {
-                   console.log(`[OpenAI Debug] Tool Identified: ${tc.function.name}`);
+                   console.log(`[OpenAI] Tool Call Detected: ${tc.function.name} with args: ${tc.function.arguments}`);
                    toolCallsMade.push({
                        name: tc.function.name,
                        arguments: tc.function.arguments
@@ -85,7 +91,7 @@ export async function getAgentAssistantResponse(
                }));
                
                if (toolOutputs.length > 0) {
-                   console.log(`[OpenAI] Submitting ${toolOutputs.length} tool outputs for run ${run.id}`);
+                   console.log(`[OpenAI] Submitting ${toolOutputs.length} tool outputs for run ${run.id}...`);
                    run = await openai.beta.threads.runs.submitToolOutputs(run.id, {
                        thread_id: currentThreadId,
                        tool_outputs: toolOutputs
@@ -93,6 +99,8 @@ export async function getAgentAssistantResponse(
                }
             }
         }
+
+        console.log(`[OpenAI] Run ${run.id} finished with status: ${run.status}`);
 
         if (run.status === 'completed') {
             const messages = await openai.beta.threads.messages.list(currentThreadId);
@@ -103,6 +111,8 @@ export async function getAgentAssistantResponse(
             const responseText = lastMessage?.content[0].type === 'text'
                 ? lastMessage.content[0].text.value
                 : "";
+            
+            console.log(`[OpenAI] Response extracted (${responseText.length} chars)`);
 
             return {
                 responseText,
@@ -110,7 +120,10 @@ export async function getAgentAssistantResponse(
                 toolCalls: toolCallsMade
             };
         } else {
-             console.error("Run failed with status:", run.status);
+             console.error(`[OpenAI] Run FAILED. Status: ${run.status}`);
+             if (run.last_error) {
+                 console.error(`[OpenAI] Error Details: ${run.last_error.code} - ${run.last_error.message}`);
+             }
              const lastRunError = run.last_error ? `${run.last_error.code}: ${run.last_error.message}` : "Unknown error";
              throw new Error(`OpenAI Assistant Run failed: ${run.status} - ${lastRunError}`);
         }
