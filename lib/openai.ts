@@ -168,9 +168,9 @@ TRANSCRIÇÃO DA CONVERSA:
 ${transcriptText}
 ---`;
 
-    // Construct JSON Schema representation for the prompt
-    const jsonFieldsStr = auditFields.map(f => `  "${f.key}": "${f.description || f.type}"`).join(",\n");
-    const jsonFooter = `\n\nINSTRUÇÕES ADICIONAIS:\n${promptInstructions}\n\nRESPOSTA OBRIGATÓRIA - VOCÊ DEVE RETORNAR UM OBJETO JSON CONTENDO TODAS AS CHAVES ABAIXO:\n{\n${jsonFieldsStr}\n}\n\nImportante: Não omita nenhuma chave. Se não houver informação para algum campo, retorne "N/A" ou valor padrão apropriado.`;
+    // Construct JSON Schema
+    const jsonFieldsStr = auditFields.map(f => `  "${f.key}": ${f.description ? `"${f.description}"` : `(${f.type})`}`).join(",\n");
+    const jsonFooter = `\n\nGere a análise seguindo estas instruções:\n${promptInstructions}\n\nRESPOSTA OBRIGATÓRIA EM JSON:\n{\n${jsonFieldsStr}\n}`;
 
     const prompt = `${contextHeader}\n\n${jsonFooter}`;
 
@@ -180,10 +180,7 @@ ${transcriptText}
         const completion = await openai.chat.completions.create({
             model: "gpt-4.1-mini",
             messages: [
-                { 
-                    role: "system", 
-                    content: "Você é o Ragnar, um Auditor de IA especialista. Sua função é analisar transcrições e fornecer um relatório técnico rigoroso exatamente no formato JSON solicitado. Você DEVE incluir todas as chaves definidas, sem exceção." 
-                },
+                { role: "system", content: "You are Ragnar, an expert AI Auditor. Respond strictly in valid JSON." },
                 { role: "user", content: prompt }
             ],
             response_format: { type: "json_object" }
