@@ -7,7 +7,18 @@ export async function finalizeSession(sessionId: string) {
 
     const session = await prisma.testSession.findUnique({
         where: { id: sessionId },
-        include: { scenario: true }
+        include: { 
+            scenario: true,
+            agentVersion: {
+                include: {
+                    agent: {
+                        include: {
+                            client: true
+                        }
+                    }
+                }
+            }
+        }
     });
 
     if (!session) return;
@@ -47,7 +58,19 @@ export async function finalizeSession(sessionId: string) {
 
     // 3. Generate Report
     try {
-        const { analysis, usedPrompt } = await generateAuditReport(session.scenario.description, transcript);
+        const clientConfig = session.agentVersion?.agent?.client;
+        const customValues = clientConfig ? {
+            prompt: clientConfig.ragnarPrompt,
+            auditFields: clientConfig.ragnarFields
+        } : undefined;
+
+        console.log(`[SessionManager] Generating report with ${clientConfig ? 'Client' : 'Global'} config.`);
+
+        const { analysis, usedPrompt } = await generateAuditReport(
+            session.scenario.description, 
+            transcript,
+            customValues
+        );
 
         const finalAnalysis = {
             ...analysis,

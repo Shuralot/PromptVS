@@ -94,6 +94,10 @@ model Client {
   createdBy User?    @relation("CreatedBy", fields: [createdById], references: [id])
   updatedBy User?    @relation("UpdatedBy", fields: [updatedById], references: [id])
   agents    Agent[]
+  
+  // Ragnar Configuration
+  ragnarPrompt String? @db.Text
+  ragnarFields Json?   // Array of field definitions
 }
 
 model Agent {

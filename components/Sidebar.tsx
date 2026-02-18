@@ -31,7 +31,6 @@ export default function Sidebar() {
             title: 'Gestão de IA',
             items: [
                 { href: '/dashboard/clients', label: 'Agentes e Clientes', icon: '🤖' },
-                { href: '/dashboard/audit-config', label: 'Ragnar', icon: '⚖️' },
             ]
         },
         {

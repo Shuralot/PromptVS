@@ -25,12 +25,13 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
-    entrypoint: >
-      /bin/sh -c "
-      echo 'Running inline entrypoint...';
-      npx prisma db push --accept-data-loss;
-      node seed-tenant.js;
-      npm run dev -- -H 0.0.0.0"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh && /app/entrypoint.sh "$@"
+      - --
+    command: ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
     depends_on:
       - db
       - socket-server

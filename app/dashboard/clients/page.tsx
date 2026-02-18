@@ -128,6 +128,9 @@ export default function ClientsPage() {
                             <button onClick={() => openEditModal(client)} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white" title="Editar">
                                 ✏️
                             </button>
+                            <Link href={`/dashboard/clients/${client.id}/ragnar`} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-indigo-400" title="Configurar Ragnar">
+                                ⚖️
+                            </Link>
                             <button onClick={() => handleDelete(client.id)} className="p-2 hover:bg-red-900/40 rounded-lg text-slate-400 hover:text-red-400" title="Excluir">
                                 🗑️
                             </button>
