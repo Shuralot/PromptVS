@@ -1,15 +1,20 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
 const axios = require("axios");
 const prisma = new PrismaClient();
 
 const app = express();
-const PORT = process.env.WEBHOOK_SERVICE_PORT || 5001;
+const PORT = process.env.WEBHOOK_INTERNAL_PORT || process.env.PORT || 5001;
 const MAIN_APP_URL = process.env.MAIN_APP_URL || "http://localhost:3000";
 
 app.use(cors());
 app.use(express.json());
+
+// Health Check
+app.get("/health", (req, res) => res.json({ status: "ok", port: PORT }));
+app.get("/", (req, res) => res.send("Webhook Service Running"));
 
 app.post("/webhook", async (req, res) => {
   try {
@@ -147,4 +152,9 @@ async function notifySocketServer(type, sessionId, data) {
 
 app.listen(PORT, () => {
   console.log(`[Webhook Service] Running on port ${PORT}`);
+});
+
+process.on("SIGTERM", () => {
+  console.log("[Webhook Service] Received SIGTERM. This usually means Easypanel killed the container via Health Check.");
+  process.exit(0);
 });

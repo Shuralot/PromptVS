@@ -1,6 +1,6 @@
 services:
   app:
-    image: tracktest-app:latest
+    image: shuralot/tracktest-app:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,9 +9,9 @@ services:
     container_name: TrackTest
     restart: always
     expose:
-      - "3000"
+      - "${APP_INTERNAL_PORT}"
     ports:
-      - "${APP_PORT}:3000"
+      - "${APP_PORT}:${APP_INTERNAL_PORT}"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - EVOLUTION_API_URL=${EVOLUTION_API_URL}
@@ -19,41 +19,51 @@ services:
       - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NODE_ENV=production
-      - SOCKET_SERVER_URL=http://socket-server:4000
+      - SOCKET_SERVER_URL=http://socket_server:${SOCKET_INTERNAL_PORT}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - PORT=${APP_INTERNAL_PORT}
     # Em produção, não usamos volumes para o código, pois ele já está dentro da imagem.
     depends_on:
       - db
-      - socket-server
+      - socket_server
     networks:
       - app_network
 
-  socket-server:
-    image: tracktest-socket:latest
+  socket_server:
+    image: shuralot/tracktest-socket:latest
     build:
       context: ./socket-server
       dockerfile: Dockerfile
     container_name: socket_server
     restart: always
+    expose:
+      - "${SOCKET_INTERNAL_PORT}"
     ports:
-      - "4000:4000"
+      - "${SOCKET_PORT}:${SOCKET_INTERNAL_PORT}"
+    environment:
+      - PORT=${SOCKET_INTERNAL_PORT:-25040}
+      - SOCKET_INTERNAL_PORT=${SOCKET_INTERNAL_PORT:-25040}
     networks:
       - app_network
 
   webhook-service:
-    image: tracktest-webhook:latest
+    image: shuralot/tracktest-webhook:latest
     build:
       context: .
       dockerfile: ./webhook-service/Dockerfile
     container_name: webhook_service
     restart: always
+    expose:
+      - "${WEBHOOK_INTERNAL_PORT}"
     ports:
-      - "${WEBHOOK_SERVICE_PORT}:5001"
+      - "${WEBHOOK_PORT}:${WEBHOOK_INTERNAL_PORT}"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      - MAIN_APP_URL=http://app:3000
-      - SOCKET_SERVER_URL=http://socket-server:4000
+      - MAIN_APP_URL=http://app:${APP_INTERNAL_PORT}
+      - SOCKET_SERVER_URL=http://socket_server:${SOCKET_INTERNAL_PORT}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - PORT=${WEBHOOK_INTERNAL_PORT:-25050}
+      - WEBHOOK_INTERNAL_PORT=${WEBHOOK_INTERNAL_PORT:-25050}
     depends_on:
       - db
       - app

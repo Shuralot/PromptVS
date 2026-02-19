@@ -1,6 +1,7 @@
 FROM node:20-alpine
 
 WORKDIR /app
+RUN apk add --no-cache libc6-compat
 
 # Copy the package.json and install dependencies
 COPY webhook-service/package*.json ./
@@ -16,6 +17,6 @@ COPY webhook-service/*.js ./
 RUN rm -f prisma.config.*
 RUN npx prisma generate
 
-EXPOSE 5001
+EXPOSE 25050
 
 CMD ["npm", "start"]

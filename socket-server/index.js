@@ -8,6 +8,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/health", (req, res) => res.json({ status: "ok", port: PORT }));
+app.get("/", (req, res) => res.send("Socket Server Running"));
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -16,7 +19,7 @@ const io = new Server(server, {
     }
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.SOCKET_INTERNAL_PORT || process.env.PORT || 4000;
 
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
@@ -51,4 +54,9 @@ app.post('/notify', (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`Socket Server running on port ${PORT}`);
+});
+
+process.on("SIGTERM", () => {
+    console.log("[Socket Server] Received SIGTERM.");
+    process.exit(0);
 });
