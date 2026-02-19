@@ -22,8 +22,18 @@ app.post("/webhook", async (req, res) => {
     const eventType = body.event;
     const data = body.data;
 
-    if (eventType !== 'messages.upsert') return res.json({ ignored: 'event_type' });
-    if (!data || !data.key) return res.json({ ignored: 'payload_structure' });
+    // --- Enhanced Logging ---
+    console.log(`[Webhook] INCOMING: ${eventType}`);
+    console.log(`[Webhook] PAYLOAD: ${JSON.stringify(data || {}, null, 2).slice(0, 500)}...`); // Truncate to avoid spam
+
+    if (eventType !== 'messages.upsert') {
+      console.log(`[Webhook] Ignored event type: ${eventType}`);
+      return res.json({ ignored: 'event_type' });
+    }
+    if (!data || !data.key) {
+      console.log(`[Webhook] Ignored invalid payload structure`);
+      return res.json({ ignored: 'payload_structure' });
+    }
 
     const remoteJid = data.key.remoteJid;
     const isFromMe = !!data.key.fromMe;

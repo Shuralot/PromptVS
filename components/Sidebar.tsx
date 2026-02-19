@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function Sidebar() {
+    // Add onCloseMobile prop to type definition
+    export default function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
@@ -51,10 +52,11 @@ export default function Sidebar() {
     }
 
     return (
-        <aside className="fixed left-0 top-0 h-full w-64 bg-slate-950 border-r border-slate-800/50 flex flex-col p-6 z-50 overflow-y-auto custom-scrollbar">
+        <aside className="h-full w-full bg-slate-950 border-r border-slate-800/50 flex flex-col p-6 overflow-y-auto custom-scrollbar shadow-2xl md:shadow-none">
             {/* Brand */}
             <div className="mb-10 flex items-center gap-3 px-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-white-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/20">
+                {/* ... (Logo content remains same) ... */}
+                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-white-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/20">
                     <img src="/logo.png" alt="TrackTest Logo" className="w-8 h-8 object-contain" />
                 </div>
                 <div>
@@ -77,6 +79,7 @@ export default function Sidebar() {
                                     <Link
                                         key={link.href}
                                         href={link.href}
+                                        onClick={onCloseMobile} // Close menu on mobile when link clicked
                                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${isActive
                                             ? 'bg-indigo-600/10 text-indigo-400 font-bold shadow-[0_0_20px_rgba(79,70,229,0.1)] border border-indigo-500/20'
                                             : 'text-slate-400 hover:bg-slate-800/40 hover:text-white border border-transparent'

@@ -22,13 +22,15 @@ const io = new Server(server, {
 const PORT = process.env.SOCKET_INTERNAL_PORT || process.env.PORT || 4000;
 
 io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    console.log(`[Socket] Client connected: ${socket.id} (Origin: ${socket.handshake.headers.origin})`);
 
     // Clients can join a room based on sessionId
     socket.on('join-session', (sessionId) => {
         if (sessionId) {
             socket.join(sessionId);
-            console.log(`Socket ${socket.id} joined session ${sessionId}`);
+            console.log(`[Socket] ${socket.id} JOINED session ${sessionId}`);
+        } else {
+            console.warn(`[Socket] ${socket.id} tried to join invalid session`);
         }
     });
 
@@ -47,7 +49,7 @@ app.post('/notify', (req, res) => {
 
     // Emit to specific room (session)
     io.to(sessionId).emit(type, data);
-    console.log(`Notification sent to session ${sessionId}: ${type}`);
+    console.log(`[Socket] NOTIFICATION BROADCAST | Session: ${sessionId} | Type: ${type} | Data Size: ${JSON.stringify(data).length} bytes`);
 
     res.json({ success: true });
 });

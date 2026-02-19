@@ -27,15 +27,15 @@ export default function Dashboard() {
 
     return (
         <div className="font-sans px-4 md:px-0 animate-fade-in-up">
-            <header className="mb-12">
+            <header className="mb-8 md:mb-12">
                 <div className="flex items-center gap-3 mb-2">
                     <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest">Acesso Autorizado</span>
-                    {user && <span className="text-slate-500 text-[10px] font-bold">Bem-vindo, {user.username}</span>}
+                    {user && <span className="text-slate-500 text-[10px] font-bold hidden sm:inline">Bem-vindo, {user.username}</span>}
                 </div>
-                <h1 className="text-4xl md:text-5xl font-black mb-3 text-white tracking-tight">
+                <h1 className="text-3xl md:text-5xl font-black mb-3 text-white tracking-tight">
                     Home
                 </h1>
-                <p className="text-slate-400 text-lg md:text-xl max-w-2xl">
+                <p className="text-slate-400 text-sm md:text-xl max-w-2xl leading-relaxed">
                     Visão geral de segurança e desempenho para o seu ecossistema AI Atende.
                 </p>
             </header>
@@ -64,7 +64,7 @@ export default function Dashboard() {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
                 {/* Quick Actions */}
                 <div className="lg:col-span-4 space-y-6">
                     <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
